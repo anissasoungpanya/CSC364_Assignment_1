@@ -10,10 +10,11 @@ import glob
 # The purpose of this function is to set up a socket connection.
 def create_socket(host, port):
     # 1. Create a socket.
-    ## soc = ...
+    soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     # 2. Try connecting the socket to the host and port.
     try:
-        ## ...
+        soc.connect((host, port))
     except:
         print("Connection Error to", port)
         sys.exit()
@@ -30,13 +31,16 @@ def read_csv(path):
     # 3. Create an empty list to store each processed row.
     table_list = []
     # 4. For each line in the file:
-    ## for ...:
+    for line in table:
+        line = line.strip()
+        if not line:
+            continue
         # 5. split it by the delimiter,
-        ## ...
+        parts = line.split(",")
         # 6. remove any leading or trailing spaces in each element, and
-        ## ...
+        parts = [p.strip() for i in parts]
         # 7. append the resulting list to table_list.
-        ## table_list.append(...)
+        table_list.append(parts)
     # 8. Close the file and return table_list.
     table_file.close()
     return table_list
@@ -46,11 +50,12 @@ def read_csv(path):
 # when no match is found in the forwarding table for a packet's destination IP.
 def find_default_gateway(table):
     # 1. Traverse the table, row by row,
-    ## for ...:
+    for row in table:
         # 2. and if the network destination of that row matches 0.0.0.0,
-        ## if ...:
+        if row[0] == "0.0.0.0":
             # 3. then return the interface of that row.
-            ## return ...
+            return row[3]
+    return None
 
 
 # The purpose of this function is to generate a forwarding table that includes the IP range for a given interface.
@@ -60,20 +65,34 @@ def generate_forwarding_table_with_range(table):
     # 1. Create an empty list to store the new forwarding table.
     new_table = []
     # 2. Traverse the old forwarding table, row by row,
-    ## for ...:
+    for row in table:
+        ntwk_dest = row[0]
+        netmask = row[1]
+        gate = row[2]
+        inter = row[3]
         # 3. and process each network destination other than 0.0.0.0
         # (0.0.0.0 is only useful for finding the default port).
-        ## if ...:
+        if ntwk_dest != "0.0.0.0":
             # 4. Store the network destination and netmask.
-            ## network_dst_string = ...
-            ## netmask_string = ...
+            network_dst_string = row[0]
+            netmask_string = row[1]
             # 5. Convert both strings into their binary representations.
-            ## network_dst_bin = ...
-            ## netmask_bin = ...
+            network_dst_bin = ip_to_bin(network_dst_string)
+            netmask_bin = ip_to_bin(netmask_string)   
             # 6. Find the IP range.
+            network_dst_int = int(network_dst_bin, 2)
+            netmask_int = int(netmask_bin, 2)
+            min_ip, max_ip = find_ip_range(network_dst_int, netmask_int)
             ## ip_range = ...
             # 7. Build the new row.
-            ## new_row = ...
+            new_row = {
+                "min": min_ip,
+                "max": max_ip,
+                "interface": interface,
+                "prefixlen": prefixlen,
+                "net": network_dst_string,
+                "mask": netmask_string,
+        }
             # 8. Append the new row to new_table.
             ## new_table.append(new_row)
     # 9. Return new_table.
